@@ -45,7 +45,7 @@ export class FeederService {
   }
 
   async findAll(): Promise<Feeder[]> {
-    return this.em.find(Feeder, {});
+    return this.em.find(Feeder, {}, { populate: ['users'] });
   }
 
   async toggleActive(id: number): Promise<Feeder> {
