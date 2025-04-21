@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "@/components/Layout";
+import axios from "axios";
 
 interface Pet {
   id: number;
@@ -29,36 +30,23 @@ export default function Pet() {
   const navigate = useNavigate();
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const user = localStorage.getItem("user");
-    if (!user) {
-      navigate("/login");
-      return;
-    }
+    const fetchPet = async () => {
+      try {
+        const response = await axios.get(`/pets/${id}`);
+        setPet(response.data);
+      } catch (err) {
+        setError("Failed to fetch pet details");
+        console.error("Error fetching pet:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    // Simulate API call with dummy data
-    setTimeout(() => {
-      setPet({
-        id: Number(id),
-        name: "Whiskers",
-        breed: "Persian",
-        sex: "male",
-        ageYears: 3,
-        isNeutered: true,
-        activityLevel: 3,
-        targetWeight: 4.5,
-        currentWeight: 5.2,
-        foodCoefficient: 1.2,
-        morningPortionGrams: 30,
-        afternoonPortionGrams: 20,
-        eveningPortionGrams: 30,
-        lastWeightUpdateDate: new Date().toISOString(),
-        feeder: { id: 1, name: "Kitchen Feeder", isActive: true },
-      });
-      setLoading(false);
-    }, 500);
-  }, [id, navigate]);
+    fetchPet();
+  }, [id]);
 
   if (loading) {
     return (
@@ -70,55 +58,106 @@ export default function Pet() {
     );
   }
 
-  if (!pet) {
+  if (error || !pet) {
     return (
       <Layout title="Pet Details">
         <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="text-gray-600">Pet not found</div>
+          <div className="text-red-600">{error || "Pet not found"}</div>
         </div>
       </Layout>
     );
   }
 
   return (
-    <Layout title={pet.name}>
-      <div className="max-w-2xl mx-auto mt-8">
-        <div className="bg-white rounded-lg shadow-md border border-pink-100 p-6">
-          <div className="space-y-6">
-            <div className="flex items-center space-x-4">
-              <div className="h-20 w-20 rounded-full bg-pink-100 flex items-center justify-center">
-                <span className="text-3xl text-pink-600">🐱</span>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-pink-600">{pet.name}</h2>
-                <p className="text-gray-600">{pet.breed}</p>
-              </div>
-            </div>
+    <Layout title={`Pet Details - ${pet.name}`}>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h1 className="text-3xl font-semibold text-pink-600 mb-6">
+          {pet.name}
+        </h1>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-4 bg-pink-50 rounded-lg">
-                <h3 className="font-semibold text-pink-700">
-                  Feeding Schedule
-                </h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-pink-50 p-4 rounded-lg">
-                    <h3 className="font-medium">Morning</h3>
-                    <p>{pet.morningPortionGrams}g</p>
-                  </div>
-                  <div className="bg-pink-50 p-4 rounded-lg">
-                    <h3 className="font-medium">Afternoon</h3>
-                    <p>{pet.afternoonPortionGrams}g</p>
-                  </div>
-                  <div className="bg-pink-50 p-4 rounded-lg">
-                    <h3 className="font-medium">Evening</h3>
-                    <p>{pet.eveningPortionGrams}g</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 bg-pink-50 rounded-lg">
-                <h3 className="font-semibold text-pink-700">Feeding History</h3>
-                {/* Add history content */}
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Basic Information
+            </h2>
+            <div className="space-y-2">
+              <p>
+                <span className="font-medium">Breed:</span> {pet.breed}
+              </p>
+              <p>
+                <span className="font-medium">Sex:</span> {pet.sex}
+              </p>
+              <p>
+                <span className="font-medium">Age:</span> {pet.ageYears} years
+              </p>
+              <p>
+                <span className="font-medium">Neutered:</span>{" "}
+                {pet.isNeutered ? "Yes" : "No"}
+              </p>
+              <p>
+                <span className="font-medium">Activity Level:</span>{" "}
+                {pet.activityLevel}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Weight & Feeding
+            </h2>
+            <div className="space-y-2">
+              <p>
+                <span className="font-medium">Current Weight:</span>{" "}
+                {pet.currentWeight}kg
+              </p>
+              <p>
+                <span className="font-medium">Target Weight:</span>{" "}
+                {pet.targetWeight}kg
+              </p>
+              <p>
+                <span className="font-medium">Food Coefficient:</span>{" "}
+                {pet.foodCoefficient}
+              </p>
+              <p>
+                <span className="font-medium">Last Weight Update:</span>{" "}
+                {new Date(pet.lastWeightUpdateDate).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Daily Portions
+            </h2>
+            <div className="space-y-2">
+              <p>
+                <span className="font-medium">Morning:</span>{" "}
+                {pet.morningPortionGrams}g
+              </p>
+              <p>
+                <span className="font-medium">Afternoon:</span>{" "}
+                {pet.afternoonPortionGrams}g
+              </p>
+              <p>
+                <span className="font-medium">Evening:</span>{" "}
+                {pet.eveningPortionGrams}g
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Feeder Information
+            </h2>
+            <div className="space-y-2">
+              <p>
+                <span className="font-medium">Assigned Feeder:</span>{" "}
+                {pet.feeder.name}
+              </p>
+              <p>
+                <span className="font-medium">Feeder Status:</span>{" "}
+                {pet.feeder.isActive ? "Active" : "Inactive"}
+              </p>
             </div>
           </div>
         </div>
