@@ -10,23 +10,26 @@ const char* password = "qkaparola";
 
 // NTP config
 const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 10800;  // UTC+3 for Bulgaria
+const long gmtOffset_sec = 10800;
 const int daylightOffset_sec = 0;
 
-// Meal times
-const int mealTimes[][2] = {
-  {6, 0},
-  {12, 0},
-  {18, 0}
-};
-
-int lastSentHour = -1;
-
-// Servo setup
+// Servo driver setup
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 const int SERVO_CHANNEL = 0;
 const int SERVO_MIN = 130;
 const int SERVO_MAX = 550;
+
+// Dispensing config
+const int gramsPerCycle = 1;  // 1 gram = 1 full rotation cycle (forward + back)
+const int rotationAngle = 90; // each servo move is 90° forward and back
+
+// Timer
+unsigned long lastRequestTime = 0;
+const unsigned long requestInterval = 10 * 60 * 1000; // 10 minutes
+
+// URLs
+const String requestURL_ORIGINAL = "http://iva.tolisoft.net:3050/esp/commands/feeder/1";
+const String requestURL_DEBUG    = "http://iva.tolisoft.net:3050/esp/commands/feeder/1?debug=true";
 
 void setup() {
   Serial.begin(115200);
@@ -34,25 +37,50 @@ void setup() {
 
   Serial.println("Connecting to WiFi...");
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+
+  // Add timeout to avoid infinite loop and watchdog reset
+  unsigned long wifiStart = millis();
+  const unsigned long wifiTimeout = 15000; // 15 seconds max
+
+  while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < wifiTimeout) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\nWiFi connected!");
-  Serial.print("IP: ");
-  Serial.println(WiFi.localIP());
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi connected!");
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\n Failed to connect to WiFi!");
+    // Optional: reboot or retry after delay
+    delay(5000);
+    Serial.println(" WiFi failed. Entering safe mode.");
+    while (true) {
+      delay(1000);  // stay idle instead of crashing
+    }
+    //ESP.restart(); // reboot if no WiFi
+  }
 
   // Time sync
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   Serial.println("Waiting for NTP time...");
   struct tm timeinfo;
-  while (!getLocalTime(&timeinfo)) {
+  unsigned long ntpStart = millis();
+  const unsigned long ntpTimeout = 10000;
+
+  while (!getLocalTime(&timeinfo) && millis() - ntpStart < ntpTimeout) {
     Serial.println("NTP sync failed.");
     delay(1000);
   }
-  Serial.println("Time synchronized!");
 
-  // Initialize PCA9685
+  if (getLocalTime(&timeinfo)) {
+    Serial.println("Time synchronized!");
+  } else {
+    Serial.println(" NTP failed after timeout.");
+  }
+
+  // Initialize PCA9685 last
   Wire.begin(14, 15);
   pwm.begin();
   pwm.setPWMFreq(50);
@@ -60,47 +88,35 @@ void setup() {
   Serial.println("PCA9685 initialized.");
 }
 
+
 void loop() {
-  // Manual test via Serial input
+  // Manual triggers
   if (Serial.available()) {
     String input = Serial.readStringUntil('\n');
     input.trim();
+
     if (input == "r") {
-      Serial.println("[Manual Trigger] Fetching grams...");
-      fetchGramsAndDispense();
+      Serial.println("[Manual DEBUG Trigger] Sending request to DEBUG URL...");
+      fetchCommandAndAct(requestURL_DEBUG);
+    }
+    else if (input == "o") {
+      Serial.println("[Manual ORIGINAL Trigger] Sending request to ORIGINAL URL...");
+      fetchCommandAndAct(requestURL_ORIGINAL);
     }
   }
 
-  // Time-based check
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    Serial.println("Failed to get time.");
-    delay(1000);
-    return;
+  // Automatic request every 10 minutes
+  if (millis() - lastRequestTime >= requestInterval) {
+    Serial.println("[Auto Trigger] Sending request to ORIGINAL URL...");
+    fetchCommandAndAct(requestURL_ORIGINAL);
+    lastRequestTime = millis();
   }
 
-  int hour = timeinfo.tm_hour;
-  int minute = timeinfo.tm_min;
-  Serial.printf("Time now: %02d:%02d\n", hour, minute);
-
-  for (int i = 0; i < 3; i++) {
-    if (hour == mealTimes[i][0] && minute == mealTimes[i][1]) {
-      if (lastSentHour != hour) {
-        Serial.println("[Auto Trigger] Scheduled meal time.");
-        fetchGramsAndDispense();
-        lastSentHour = hour;
-      } else {
-        Serial.println("Request already sent for this hour.");
-      }
-    }
-  }
-
-  delay(10000); // Check every 10 seconds
+  delay(1000);
 }
 
-void fetchGramsAndDispense() {
+void fetchCommandAndAct(const String& url) {
   HTTPClient http;
-  String url = "http://iva.tolisoft.net:3050/feeders/1/next-portion";
   Serial.println("Requesting from: " + url);
 
   http.begin(url);
@@ -111,24 +127,51 @@ void fetchGramsAndDispense() {
     String payload = http.getString();
     Serial.println("Payload: " + payload);
 
-    // Manually extract the number from {"grams":47}
-    int grams = -1;
+    String action = "";
+    int grams = 0;
 
-    int startIndex = payload.indexOf(":");
-    int endIndex = payload.indexOf("}");
+    // Parse "action"
+    int actionKey = payload.indexOf("\"action\"");
+    if (actionKey != -1) {
+      int quote1 = payload.indexOf("\"", actionKey + 8);
+      int quote2 = payload.indexOf("\"", quote1 + 1);
+      action = payload.substring(quote1 + 1, quote2);
+    }
 
-    if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
-      String gramsStr = payload.substring(startIndex + 1, endIndex);
+    // Parse "grams" if exists
+    if (payload.indexOf("\"grams\"") != -1) {
+      int gramsColon = payload.indexOf(":", payload.indexOf("\"grams\""));
+      int end = payload.indexOf("}", gramsColon);
+      String gramsStr = payload.substring(gramsColon + 1, end);
       gramsStr.trim();
       grams = gramsStr.toInt();
     }
 
-    if (grams > 0 && grams < 100) {
-      int targetDegrees = grams * 2;
-      Serial.printf("Dispensing %d grams (%d°)\n", grams, targetDegrees);
-      moveServoToDegrees(targetDegrees);
+    Serial.printf("→ Action: '%s', Grams: %d\n", action.c_str(), grams);
+
+/////
+
+      if (action == "dispense" && grams > 0) {
+        Serial.printf("→ Starting dispense for %d grams (5g per cycle)\n", grams);
+
+        int cycleCount = 0;
+        while (grams > 0) {
+          cycleCount++;
+          Serial.printf("→ Cycle %d | Remaining grams: %d\n", cycleCount, grams);
+
+          moveServoToDegrees(rotationAngle); // forward
+          delay(400);
+          moveServoToDegrees(0);             // back
+          delay(400);
+
+          grams -= 5;
+        }
+
+        Serial.println("→ Dispensing complete.");
+      } else if (action == "none") {
+      Serial.println("→ Action is 'none'. Skipping movement.");
     } else {
-      Serial.println("Invalid or missing 'grams' value.");
+      Serial.println("→ Unknown action or invalid data.");
     }
 
   } else {
@@ -138,16 +181,9 @@ void fetchGramsAndDispense() {
   http.end();
 }
 
-
 void moveServoToDegrees(int degree) {
   degree = constrain(degree, 0, 180);
-  int targetPulse = map(degree, 0, 180, SERVO_MIN, SERVO_MAX);
-  Serial.printf(" → Moving to %d° → pulse %d\n", degree, targetPulse);
-
-  pwm.setPWM(SERVO_CHANNEL, 0, targetPulse);
-  delay(1000);
-
-  Serial.println(" → Returning to 0°");
-  pwm.setPWM(SERVO_CHANNEL, 0, SERVO_MIN);
-  delay(1000);
+  int pulse = map(degree, 0, 180, SERVO_MIN, SERVO_MAX);
+  Serial.printf(" → Moving servo to %d° → pulse %d\n", degree, pulse);
+  pwm.setPWM(SERVO_CHANNEL, 0, pulse);
 }
