@@ -170,4 +170,12 @@ export class PetService {
       },
     };
   }
+
+  async getPetForFeeder(feederId: number): Promise<Pet> {
+    const pet = await this.em.findOne(Pet, { feeder: feederId });
+    if (!pet) {
+      throw new NotFoundException('No pet found for this feeder');
+    }
+    return pet;
+  }
 }

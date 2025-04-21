@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
-import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { Feeder } from './feeder.entity';
-import { FeederService } from './feeder.service';
 import { FeederController } from './feeder.controller';
+import { FeederService } from './feeder.service';
+import { PetModule } from '../pet/pet.module';
 
 @Module({
-  imports: [MikroOrmModule.forFeature([Feeder])],
-  providers: [FeederService],
-  exports: [FeederService, MikroOrmModule],
+  imports: [PetModule],
   controllers: [FeederController],
+  providers: [FeederService],
+  exports: [FeederService],
 })
 export class FeederModule {}
