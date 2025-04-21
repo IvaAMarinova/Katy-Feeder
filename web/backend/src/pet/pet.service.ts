@@ -114,39 +114,45 @@ export class PetService {
     throw new BadRequestException('Unexpected error: ' + error.message);
   }
 
-  async updateWeight(id: number, newWeight: number): Promise<Pet> {
+  async updateWeight(id: number, weights: number[]): Promise<Pet> {
+    if (!Array.isArray(weights)) {
+      throw new BadRequestException('Weights must be an array');
+    }
+
     const pet = await this.findById(id);
 
-    pet.currentWeight = newWeight;
+    // Clean the data by filtering out invalid values
+    const cleanWeights = weights.filter(
+      (weight) => weight >= 0 && weight <= 100,
+    );
+
+    if (cleanWeights.length === 0) {
+      throw new BadRequestException('No valid weight measurements provided');
+    }
+
+    // Calculate average weight
+    const averageWeight =
+      cleanWeights.reduce((sum, weight) => sum + weight, 0) /
+      cleanWeights.length;
+
+    // Round to 2 decimal places
+    pet.currentWeight = Math.round(averageWeight * 100) / 100;
     pet.lastWeightUpdateDate = new Date();
 
-    // Recalculate portions
-    const { morning, afternoon, evening } = this.calculateMealPortions(pet);
-
-    pet.morningPortionGrams = morning;
-    pet.afternoonPortionGrams = afternoon;
-    pet.eveningPortionGrams = evening;
+    // Recalculate portions based on new weight
+    this.calculatePortions(pet);
 
     await this.em.flush();
     return pet;
   }
 
-  private calculateMealPortions(pet: Pet): {
-    morning: number;
-    afternoon: number;
-    evening: number;
-  } {
-    const dailyAmount = this.calculateFoodAmount(
-      pet.currentWeight,
-      pet.targetWeight,
-      pet.foodCoefficient,
-    );
+  private calculatePortions(pet: Pet): void {
+    const dailyGrams =
+      pet.currentWeight * pet.foodCoefficient * pet.activityLevel;
 
-    return {
-      morning: Math.round(dailyAmount * 0.35),
-      afternoon: Math.round(dailyAmount * 0.3),
-      evening: Math.round(dailyAmount * 0.35),
-    };
+    pet.morningPortionGrams = Math.round(dailyGrams * 0.4);
+    pet.afternoonPortionGrams = Math.round(dailyGrams * 0.2);
+    pet.eveningPortionGrams = Math.round(dailyGrams * 0.4);
   }
 
   async getCurrentPortions(id: number): Promise<{

@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { UserModule } from './user/user.module';
 import { PetModule } from './pet/pet.module';
 import { FeederModule } from './feeder/feeder.module';
+import { EspModule } from './esp/esp.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { FeederModule } from './feeder/feeder.module';
     UserModule,
     PetModule,
     FeederModule,
+    EspModule,
   ],
 })
 export class AppModule {}

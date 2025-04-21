@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
 import { Feeder } from './feeder.entity';
 import { validateOrReject } from 'class-validator';
@@ -13,10 +9,10 @@ export class FeederService {
   constructor(private readonly em: EntityManager) {}
 
   async create(data: Partial<Feeder>): Promise<Feeder> {
-    const feeder = this.em.create(
-      Feeder,
-      data as Required<Pick<Feeder, 'name' | 'isActive'>>,
-    );
+    const feeder = this.em.create(Feeder, {
+      name: data.name!,
+      isActive: data.isActive ?? false,
+    });
     try {
       await validateOrReject(feeder);
       await this.em.persistAndFlush(feeder);
@@ -26,9 +22,19 @@ export class FeederService {
     }
   }
 
+  async findAll(): Promise<Feeder[]> {
+    return this.em.find(Feeder, {}, { populate: ['users'] });
+  }
+
   async findById(id: number): Promise<Feeder> {
-    const feeder = await this.em.findOne(Feeder, { id });
-    if (!feeder) throw new NotFoundException('Feeder not found');
+    const feeder = await this.em.findOne(
+      Feeder,
+      { id },
+      { populate: ['users'] },
+    );
+    if (!feeder) {
+      throw new NotFoundException(`Feeder with ID ${id} not found`);
+    }
     return feeder;
   }
 
@@ -44,10 +50,6 @@ export class FeederService {
     await this.em.removeAndFlush(feeder);
   }
 
-  async findAll(): Promise<Feeder[]> {
-    return this.em.find(Feeder, {}, { populate: ['users'] });
-  }
-
   async toggleActive(id: number): Promise<Feeder> {
     const feeder = await this.findById(id);
     feeder.isActive = !feeder.isActive;
@@ -57,31 +59,31 @@ export class FeederService {
 
   async addUser(feederId: number, userId: number): Promise<Feeder> {
     const feeder = await this.findById(feederId);
-    const user = await this.em.findOne('User', { id: userId });
-    if (!user) throw new NotFoundException('User not found');
+    const user = await this.em.findOne(User, { id: userId });
 
-    feeder.users.add(user as User);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    feeder.users.add(user);
     await this.em.flush();
     return feeder;
   }
 
   async removeUser(feederId: number, userId: number): Promise<Feeder> {
     const feeder = await this.findById(feederId);
-    const user = await this.em.findOne('User', { id: userId });
-    if (!user) throw new NotFoundException('User not found');
+    const user = await this.em.findOne(User, { id: userId });
 
-    feeder.users.add(user as User);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    feeder.users.remove(user);
     await this.em.flush();
     return feeder;
   }
 
   private handleUnexpectedError(error: any): never {
-    if (
-      error instanceof BadRequestException ||
-      error instanceof NotFoundException
-    )
-      throw error;
-    console.error(error);
-    throw new BadRequestException('Unexpected error: ' + error.message);
+    throw error;
   }
 }
