@@ -29,16 +29,6 @@ const Layout: React.FC<LayoutProps> = ({ children, title }) => {
                 </>
               )}
             </div>
-            <button
-              onClick={() => {
-                localStorage.removeItem("user");
-                navigate("/login");
-              }}
-              className="text-pink-600 hover:text-pink-700 px-4 py-2 rounded-md
-                border border-pink-200 hover:bg-pink-50 transition-colors"
-            >
-              Logout
-            </button>
           </div>
         </div>
       </nav>
