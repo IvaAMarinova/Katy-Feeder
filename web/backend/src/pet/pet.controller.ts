@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { PetService } from './pet.service';
 import { Pet } from './pet.entity';
@@ -37,5 +38,25 @@ export class PetController {
   @Delete(':id')
   async remove(@Param('id') id: number): Promise<void> {
     return this.petService.delete(id);
+  }
+
+  @Get(':id/daily-food')
+  async calculateDailyFood(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<{ dailyFoodGrams: number }> {
+    return this.petService.calculateDailyFoodAmount(id);
+  }
+
+  @Put(':id/weight')
+  async updateWeight(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('weight') weight: number,
+  ): Promise<Pet> {
+    return this.petService.updateWeight(id, weight);
+  }
+
+  @Get(':id/portions')
+  async getCurrentPortions(@Param('id', ParseIntPipe) id: number) {
+    return this.petService.getCurrentPortions(id);
   }
 }

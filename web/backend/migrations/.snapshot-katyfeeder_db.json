@@ -154,6 +154,47 @@
           "length": null,
           "mappedType": "integer"
         },
+        "morning_portion_grams": {
+          "name": "morning_portion_grams",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": null,
+          "mappedType": "integer"
+        },
+        "afternoon_portion_grams": {
+          "name": "afternoon_portion_grams",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": null,
+          "mappedType": "integer"
+        },
+        "evening_portion_grams": {
+          "name": "evening_portion_grams",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": null,
+          "mappedType": "integer"
+        },
+        "last_weight_update_date": {
+          "name": "last_weight_update_date",
+          "type": "datetime",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": null,
+          "default": "CURRENT_TIMESTAMP",
+          "mappedType": "datetime"
+        },
         "feeder_id": {
           "name": "feeder_id",
           "type": "int",

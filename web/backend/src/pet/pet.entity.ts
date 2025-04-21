@@ -33,6 +33,18 @@ export class Pet {
   @Property()
   foodCoefficient!: number;
 
+  @Property()
+  morningPortionGrams!: number;
+
+  @Property()
+  afternoonPortionGrams!: number;
+
+  @Property()
+  eveningPortionGrams!: number;
+
+  @Property({ defaultRaw: 'CURRENT_TIMESTAMP' })
+  lastWeightUpdateDate!: Date;
+
   @ManyToOne(() => Feeder)
   feeder!: Feeder;
 }
