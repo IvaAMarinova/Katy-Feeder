@@ -50,9 +50,9 @@ export class PetController {
   @Put(':id/weight')
   async updateWeight(
     @Param('id', ParseIntPipe) id: number,
-    @Body('weight') weight: number,
-  ): Promise<Pet> {
-    return this.petService.updateWeight(id, weight);
+    @Body() body: { weights: number[] },
+  ) {
+    return this.petService.updateWeight(id, body.weights);
   }
 
   @Get(':id/portions')
