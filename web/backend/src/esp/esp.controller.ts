@@ -1,12 +1,14 @@
 import {
   Controller,
   Get,
+  Post,
   Param,
-  ParseIntPipe,
   Query,
+  ParseIntPipe,
   Logger,
 } from '@nestjs/common';
-import { EspService, FeederCommand } from './esp.service';
+import { EspService } from './esp.service';
+import { FeederCommand } from './esp.service';
 
 @Controller('esp/commands')
 export class EspController {
@@ -28,6 +30,20 @@ export class EspController {
       return result;
     } catch (error) {
       this.logger.error(`Error getting feeder command: ${error.message}`);
+      throw error;
+    }
+  }
+
+  @Post('feeder/:id/feed-now')
+  async triggerFeeding(
+    @Param('id', ParseIntPipe) feederId: number,
+  ): Promise<{ success: boolean }> {
+    this.logger.debug(`Triggering immediate feeding for feeder ${feederId}`);
+    try {
+      await this.espService.triggerImmediateFeeding(feederId);
+      return { success: true };
+    } catch (error) {
+      this.logger.error(`Error triggering feeding: ${error.message}`);
       throw error;
     }
   }

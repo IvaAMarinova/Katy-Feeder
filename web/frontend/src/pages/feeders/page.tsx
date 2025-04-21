@@ -4,6 +4,7 @@ import Layout from "@/components/Layout";
 import axios from "axios";
 import { FaHome, FaPaw } from "react-icons/fa";
 import { MdPets } from "react-icons/md";
+import { toast } from "react-toastify";
 
 interface Pet {
   id: number;
@@ -55,6 +56,17 @@ const FeederDetails: React.FC = () => {
       setFeeder(response.data);
     } catch (err) {
       console.error("Error toggling feeder status:", err);
+    }
+  };
+
+  const handleFeedNow = async () => {
+    try {
+      await axios.post(`/esp/commands/feeder/${id}/feed-now`);
+      // Optional: Show success message
+      toast.success("Feeding triggered successfully!");
+    } catch (err) {
+      console.error("Error triggering feed:", err);
+      toast.error("Failed to trigger feeding");
     }
   };
 
@@ -112,22 +124,47 @@ const FeederDetails: React.FC = () => {
 
         {/* Status Card */}
         <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <FaHome className="text-2xl text-pink-600" />
-              <h2 className="text-xl font-semibold text-gray-800">
-                Feeder Status
-              </h2>
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <FaHome className="text-2xl text-pink-600" />
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Feeder Status
+                </h2>
+              </div>
+              <div
+                className={`px-4 py-2 rounded-full ${
+                  feeder.isActive
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+              >
+                {feeder.isActive ? "Online" : "Offline"}
+              </div>
             </div>
-            <div
-              className={`px-4 py-2 rounded-full ${
-                feeder.isActive
-                  ? "bg-green-100 text-green-800"
-                  : "bg-red-100 text-red-800"
-              }`}
+
+            {/* New Feed Now Button */}
+            <button
+              onClick={handleFeedNow}
+              disabled={!feeder.isActive}
+              className={`w-full py-4 rounded-lg text-white text-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-3
+                ${
+                  feeder.isActive
+                    ? "bg-pink-600 hover:bg-pink-700 transform hover:scale-102"
+                    : "bg-gray-400 cursor-not-allowed"
+                }
+              `}
             >
-              {feeder.isActive ? "Online" : "Offline"}
-            </div>
+              <MdPets className="text-2xl" />
+              <span>Feed Now</span>
+            </button>
+
+            {/* Optional: Add helper text */}
+            {!feeder.isActive && (
+              <p className="text-sm text-gray-500 text-center">
+                Feeder must be online to trigger manual feeding
+              </p>
+            )}
           </div>
         </div>
 

@@ -13,6 +13,7 @@ export class EspService {
   private readonly logger = new Logger(EspService.name);
   private readonly feedingHours = [9, 15, 20];
   private lastDispensedHour: Map<number, number> = new Map();
+  private pendingFeedings: Map<number, number> = new Map(); // Store pending feed amounts
 
   constructor(
     private readonly em: EntityManager,
@@ -20,19 +21,37 @@ export class EspService {
     private readonly feederService: FeederService,
   ) {}
 
+  async triggerImmediateFeeding(feederId: number): Promise<void> {
+    const pet = await this.petService.getPetForFeeder(feederId);
+    const grams = pet.morningPortionGrams; // Use morning portion as default
+    this.pendingFeedings.set(feederId, grams);
+    this.logger.debug(`Set pending feeding for feeder ${feederId}: ${grams}g`);
+  }
+
   async getFeederCommand(
     feederId: number,
     debug = false,
   ): Promise<FeederCommand> {
     try {
       const feeder = await this.feederService.findById(feederId);
-
       this.logger.debug(`Found feeder: ${JSON.stringify(feeder)}`);
 
       if (!feeder.isActive) {
         return { action: 'none' };
       }
 
+      // Check for pending feeding first
+      const pendingGrams = this.pendingFeedings.get(feederId);
+      if (pendingGrams) {
+        this.pendingFeedings.delete(feederId); // Clear the pending feeding
+        this.logger.debug(`Executing pending feeding: ${pendingGrams}g`);
+        return {
+          action: 'dispense',
+          grams: pendingGrams,
+        };
+      }
+
+      // Regular feeding schedule logic
       const pet = await this.petService.getPetForFeeder(feederId);
       const currentHour = new Date().getHours();
 
