@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import axios from "axios";
+import { FaHome, FaPaw } from "react-icons/fa";
+import { MdPets } from "react-icons/md";
 
 interface Pet {
   id: number;
@@ -78,57 +80,97 @@ const FeederDetails: React.FC = () => {
 
   return (
     <Layout title={`${feeder.name}`}>
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-md">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <h1 className="text-2xl font-semibold text-gray-900">
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header Card */}
+        <div className="bg-pink-500 rounded-lg shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center space-x-4">
+              <FaHome className="text-3xl sm:text-4xl text-white" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">
                 {feeder.name}
               </h1>
-              <div className="flex items-center space-x-4">
-                <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                    feeder.isActive
-                      ? "bg-green-100 text-green-800"
-                      : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  {feeder.isActive ? "Active" : "Inactive"}
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="bg-white/20 px-4 py-2 rounded-full">
+                <span className="text-white font-semibold">
+                  ID: #{feeder.id}
                 </span>
-                <button
-                  onClick={handleToggleActive}
-                  className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors"
-                >
-                  Toggle Status
-                </button>
               </div>
+              <button
+                onClick={handleToggleActive}
+                className={`px-6 py-2 rounded-full font-semibold transition-colors ${
+                  feeder.isActive
+                    ? "bg-green-500 hover:bg-green-600"
+                    : "bg-red-500 hover:bg-red-600"
+                } text-white`}
+              >
+                {feeder.isActive ? "Active" : "Inactive"}
+              </button>
             </div>
           </div>
+        </div>
 
-          <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">All Pets</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {pets.map((pet) => (
-                <div
-                  key={pet.id}
-                  className="bg-white rounded-lg shadow-md p-6 border border-pink-100"
-                >
-                  <h3 className="text-xl font-semibold text-pink-600 mb-2">
+        {/* Status Card */}
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <FaHome className="text-2xl text-pink-600" />
+              <h2 className="text-xl font-semibold text-gray-800">
+                Feeder Status
+              </h2>
+            </div>
+            <div
+              className={`px-4 py-2 rounded-full ${
+                feeder.isActive
+                  ? "bg-green-100 text-green-800"
+                  : "bg-red-100 text-red-800"
+              }`}
+            >
+              {feeder.isActive ? "Online" : "Offline"}
+            </div>
+          </div>
+        </div>
+
+        {/* Pets Grid */}
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+          <div className="flex items-center space-x-4 mb-6">
+            <MdPets className="text-2xl text-pink-600" />
+            <h2 className="text-xl font-semibold text-gray-800">
+              Connected Pets
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {pets.map((pet) => (
+              <div
+                key={pet.id}
+                className="bg-white rounded-lg shadow-md p-6 border border-pink-100 hover:border-pink-300 transform hover:scale-102 transition-all duration-200"
+              >
+                <div className="flex items-center space-x-3 mb-4">
+                  <FaPaw className="text-2xl text-pink-600" />
+                  <h3 className="text-xl font-semibold text-pink-600">
                     {pet.name}
                   </h3>
-                  <div className="space-y-2 text-gray-600 mb-4">
+                </div>
+                <div className="space-y-3 text-gray-600 mb-4">
+                  <div className="flex items-center space-x-2">
+                    <MdPets className="text-pink-400" />
                     <p>Breed: {pet.breed}</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <FaHome className="text-pink-400" />
                     <p>Assigned Feeder: {pet.feeder?.name || "None"}</p>
                   </div>
-                  <button
-                    onClick={() => navigate(`/pet/${pet.id}`)}
-                    className="w-full bg-pink-600 text-white py-2 rounded-md hover:bg-pink-700 transition-colors"
-                  >
-                    View Details
-                  </button>
                 </div>
-              ))}
-            </div>
+                <button
+                  onClick={() => navigate(`/pet/${pet.id}`)}
+                  className="w-full bg-pink-600 text-white py-2 rounded-md hover:bg-pink-700 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <MdPets />
+                  <span>View Details</span>
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </div>
