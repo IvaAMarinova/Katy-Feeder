@@ -1,61 +1,76 @@
 import React, { useState, useEffect } from "react";
-import { FaPaw, FaCog, FaPlay } from "react-icons/fa";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
+import axios from "axios";
+import { FaHome, FaPaw } from "react-icons/fa";
+import { MdPets } from "react-icons/md";
+import { toast } from "react-toastify";
 
 interface Pet {
-  id: string;
+  id: number;
   name: string;
   breed: string;
-  avatar?: string;
+  feeder?: {
+    id: number;
+    name: string;
+  };
 }
 
-interface FeederDetailsProps {
-  id: string;
+interface Feeder {
+  id: number;
   name: string;
-  status: "active" | "inactive";
-  pets: Pet[];
+  isActive: boolean;
 }
 
 const FeederDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<"active" | "inactive">("inactive");
-  const [isFeeding, setIsFeeding] = useState(false);
-  const [feederData, setFeederData] = useState<{
-    name: string;
-    pets: Pet[];
-  } | null>(null);
+  const [feeder, setFeeder] = useState<Feeder | null>(null);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const user = localStorage.getItem("user");
-    if (!user) {
-      navigate("/login");
-      return;
+    const fetchData = async () => {
+      try {
+        const [feederResponse, petsResponse] = await Promise.all([
+          axios.get(`/feeders/${id}`),
+          axios.get("/pets"),
+        ]);
+        setFeeder(feederResponse.data);
+        setPets(petsResponse.data);
+      } catch (err) {
+        setError("Failed to fetch data");
+        console.error("Error fetching data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id]);
+
+  const handleToggleActive = async () => {
+    try {
+      const response = await axios.put(`/feeders/${id}/toggle`);
+      setFeeder(response.data);
+    } catch (err) {
+      console.error("Error toggling feeder status:", err);
     }
+  };
 
-    // Simulate API call with dummy data
-    setTimeout(() => {
-      setFeederData({
-        name: "Kitchen Feeder",
-        pets: [
-          {
-            id: "1",
-            name: "Whiskers",
-            breed: "Persian",
-          },
-          {
-            id: "2",
-            name: "Mittens",
-            breed: "Maine Coon",
-          },
-        ],
-      });
-      setStatus("active");
-    }, 500);
-  }, [id, navigate]);
+  const handleFeedNow = async () => {
+    try {
+      await axios.post(`/esp/commands/feeder/${id}/feed-now`);
+      // Optional: Show success message
+      toast.success("Feeding triggered successfully!");
+    } catch (err) {
+      console.error("Error triggering feed:", err);
+      toast.error("Failed to trigger feeding");
+    }
+  };
 
-  if (!feederData) {
+  if (loading) {
     return (
       <Layout title="Feeder Details">
         <div className="min-h-[60vh] flex items-center justify-center">
@@ -65,129 +80,134 @@ const FeederDetails: React.FC = () => {
     );
   }
 
-  const handleStatusToggle = () => {
-    setStatus(status === "active" ? "inactive" : "active");
-  };
-
-  const handleFeedNow = () => {
-    setIsFeeding(true);
-    // Add your feeding logic here
-    setTimeout(() => setIsFeeding(false), 2000); // Simulate feeding process
-  };
+  if (error || !feeder) {
+    return (
+      <Layout title="Feeder Details">
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="text-red-600">{error || "Feeder not found"}</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
-    <Layout title={feederData.name}>
-      <div className="max-w-2xl mx-auto mt-8">
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-pink-100 flex justify-between items-start">
-            <div>
-              <h2 className="text-xl font-semibold text-pink-700 mb-1">
-                {feederData.name}
-              </h2>
-              <p className="text-sm text-gray-500">Feeder ID: {id}</p>
+    <Layout title={`${feeder.name}`}>
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header Card */}
+        <div className="bg-pink-500 rounded-lg shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center space-x-4">
+              <FaHome className="text-3xl sm:text-4xl text-white" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">
+                {feeder.name}
+              </h1>
             </div>
-            <span
-              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium
-              ${
-                status === "active"
-                  ? "bg-pink-500 text-white"
-                  : "border border-pink-500 text-pink-500"
-              }`}
-            >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </span>
-          </div>
-
-          {/* Content */}
-          <div className="p-6 space-y-6">
-            {/* Status Toggle */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FaPlay className="text-xl text-pink-600" />
-                <span className="text-gray-700">Feeder Status</span>
-              </div>
-              <label className="relative inline-block w-12 h-6">
-                <input
-                  type="checkbox"
-                  className="hidden"
-                  checked={status === "active"}
-                  onChange={handleStatusToggle}
-                />
-                <span
-                  className={`absolute cursor-pointer inset-0 rounded-full transition-colors duration-300
-                  ${status === "active" ? "bg-pink-500" : "bg-gray-200"}`}
-                >
-                  <span
-                    className={`absolute w-5 h-5 bg-white rounded-full transition-transform duration-300
-                    ${
-                      status === "active" ? "translate-x-6" : "translate-x-1"
-                    } top-0.5`}
-                  />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="bg-white/20 px-4 py-2 rounded-full">
+                <span className="text-white font-semibold">
+                  ID: #{feeder.id}
                 </span>
-              </label>
+              </div>
+              <button
+                onClick={handleToggleActive}
+                className={`px-6 py-2 rounded-full font-semibold transition-colors ${
+                  feeder.isActive
+                    ? "bg-green-500 hover:bg-green-600"
+                    : "bg-red-500 hover:bg-red-600"
+                } text-white`}
+              >
+                {feeder.isActive ? "Active" : "Inactive"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Status Card */}
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <FaHome className="text-2xl text-pink-600" />
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Feeder Status
+                </h2>
+              </div>
+              <div
+                className={`px-4 py-2 rounded-full ${
+                  feeder.isActive
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+              >
+                {feeder.isActive ? "Online" : "Offline"}
+              </div>
             </div>
 
-            <hr className="border-pink-100" />
-
-            {/* Feed Now Button */}
+            {/* New Feed Now Button */}
             <button
               onClick={handleFeedNow}
-              disabled={status !== "active" || isFeeding}
-              className={`w-full bg-pink-500 text-white py-6 px-4 rounded-md text-xl font-bold
-                flex items-center justify-center shadow-md transition-transform
+              disabled={!feeder.isActive}
+              className={`w-full py-4 rounded-lg text-white text-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-3
                 ${
-                  status === "active" && !isFeeding
-                    ? "hover:scale-102 hover:bg-pink-600"
-                    : "opacity-50 cursor-not-allowed"
-                }`}
+                  feeder.isActive
+                    ? "bg-pink-600 hover:bg-pink-700 transform hover:scale-102"
+                    : "bg-gray-400 cursor-not-allowed"
+                }
+              `}
             >
-              {isFeeding ? "Feeding..." : "Feed Now"}
+              <MdPets className="text-2xl" />
+              <span>Feed Now</span>
             </button>
 
-            {/* Pets Section */}
-            <div className="space-y-4">
-              <h3 className="flex items-center gap-2 text-lg font-medium text-pink-700">
-                <FaPaw />
-                Connected Pets
-              </h3>
-              <div className="space-y-2">
-                {feederData.pets.length > 0 ? (
-                  feederData.pets.map((pet) => (
-                    <div
-                      key={pet.id}
-                      className="flex items-center justify-between p-3 bg-white rounded-md border border-pink-100 shadow-sm"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center text-pink-800">
-                          {pet.avatar || <FaPaw />}
-                        </div>
-                        <div className="text-left">
-                          <p className="font-medium">{pet.name}</p>
-                          <p className="text-sm text-gray-500">{pet.breed}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => navigate(`/pet/${pet.id}`)}
-                        className="text-sm text-pink-700 hover:text-pink-800"
-                      >
-                        View Details
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center text-gray-500">No pets connected</p>
-                )}
-              </div>
-            </div>
+            {/* Optional: Add helper text */}
+            {!feeder.isActive && (
+              <p className="text-sm text-gray-500 text-center">
+                Feeder must be online to trigger manual feeding
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Pets Grid */}
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+          <div className="flex items-center space-x-4 mb-6">
+            <MdPets className="text-2xl text-pink-600" />
+            <h2 className="text-xl font-semibold text-gray-800">
+              Connected Pets
+            </h2>
           </div>
 
-          {/* Footer */}
-          <div className="p-6 border-t border-pink-100">
-            <button className="w-full py-2.5 px-5 border border-pink-100 rounded-md text-sm font-medium text-pink-700 hover:bg-pink-50">
-              <FaCog className="inline mr-2" />
-              Edit Feeder Settings
-            </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {pets.map((pet) => (
+              <div
+                key={pet.id}
+                className="bg-white rounded-lg shadow-md p-6 border border-pink-100 hover:border-pink-300 transform hover:scale-102 transition-all duration-200"
+              >
+                <div className="flex items-center space-x-3 mb-4">
+                  <FaPaw className="text-2xl text-pink-600" />
+                  <h3 className="text-xl font-semibold text-pink-600">
+                    {pet.name}
+                  </h3>
+                </div>
+                <div className="space-y-3 text-gray-600 mb-4">
+                  <div className="flex items-center space-x-2">
+                    <MdPets className="text-pink-400" />
+                    <p>Breed: {pet.breed}</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <FaHome className="text-pink-400" />
+                    <p>Assigned Feeder: {pet.feeder?.name || "None"}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate(`/pet/${pet.id}`)}
+                  className="w-full bg-pink-600 text-white py-2 rounded-md hover:bg-pink-700 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <MdPets />
+                  <span>View Details</span>
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </div>
