@@ -1,7 +1,7 @@
 #include <HX711_ADC.h>
 
-const int HX711_dout = 13;  // DT
-const int HX711_sck  = 12;  // SCK
+const int HX711_dout = 13; 
+const int HX711_sck  = 12;  
 
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
 
@@ -14,10 +14,10 @@ void setup() {
 
   LoadCell.begin();
   LoadCell.start(2000);
-  LoadCell.setCalFactor(1.0); // start with a guess, adjust later
+  LoadCell.setCalFactor(1.6); 
 
   Serial.println("Taring (remove any weight)...");
-  LoadCell.tare();  // reset to 0 with no weight
+  LoadCell.tare();  
   Serial.println("Tare complete!");
 }
 
@@ -25,7 +25,7 @@ void loop() {
   LoadCell.update();
 
   if (millis() - lastPrint > 1000) {
-    float weight = LoadCell.getData(); // unit = "calibrated units"
+    float weight = LoadCell.getData();
     Serial.print("Reading: ");
     Serial.print(weight, 2);
     Serial.println(" units");

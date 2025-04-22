@@ -4,30 +4,31 @@
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
 
-// WiFi credentials
-const char* ssid = "Redmi";
-const char* password = "qkaparola";
 
-// NTP config
+const char* ssid = ""; //wifi ime
+const char* password = ""; //wifi parola
+
+
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 10800;
 const int daylightOffset_sec = 0;
 
-// Servo driver setup
+
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 const int SERVO_CHANNEL = 0;
 const int SERVO_MIN = 130;
 const int SERVO_MAX = 550;
 
-// Dispensing config
-const int gramsPerCycle = 1;  // 1 gram = 1 full rotation cycle (forward + back)
-const int rotationAngle = 90; // each servo move is 90° forward and back
 
-// Timer
+const int gramsPerCycle = 1;  
+const int rotationAngle = 90; 
+
+
 unsigned long lastRequestTime = 0;
-const unsigned long requestInterval = 10 * 60 * 1000; // 10 minutes
+const unsigned long requestInterval = 5000; //5secs
+//const unsigned long requestInterval = 10 * 60 * 1000;  10mins
 
-// URLs
+
 const String requestURL_ORIGINAL = "http://iva.tolisoft.net:3050/esp/commands/feeder/1";
 const String requestURL_DEBUG    = "http://iva.tolisoft.net:3050/esp/commands/feeder/1?debug=true";
 
@@ -38,9 +39,8 @@ void setup() {
   Serial.println("Connecting to WiFi...");
   WiFi.begin(ssid, password);
 
-  // Add timeout to avoid infinite loop and watchdog reset
   unsigned long wifiStart = millis();
-  const unsigned long wifiTimeout = 15000; // 15 seconds max
+  const unsigned long wifiTimeout = 15000; 
 
   while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < wifiTimeout) {
     delay(500);
@@ -53,16 +53,13 @@ void setup() {
     Serial.println(WiFi.localIP());
   } else {
     Serial.println("\n Failed to connect to WiFi!");
-    // Optional: reboot or retry after delay
     delay(5000);
-    Serial.println(" WiFi failed. Entering safe mode.");
     while (true) {
-      delay(1000);  // stay idle instead of crashing
+      delay(1000);  
     }
-    //ESP.restart(); // reboot if no WiFi
+    //ESP.restart(); 
   }
 
-  // Time sync
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   Serial.println("Waiting for NTP time...");
   struct tm timeinfo;
@@ -80,7 +77,6 @@ void setup() {
     Serial.println(" NTP failed after timeout.");
   }
 
-  // Initialize PCA9685 last
   Wire.begin(14, 15);
   pwm.begin();
   pwm.setPWMFreq(50);
@@ -90,7 +86,6 @@ void setup() {
 
 
 void loop() {
-  // Manual triggers
   if (Serial.available()) {
     String input = Serial.readStringUntil('\n');
     input.trim();
@@ -105,7 +100,7 @@ void loop() {
     }
   }
 
-  // Automatic request every 10 minutes
+  
   if (millis() - lastRequestTime >= requestInterval) {
     Serial.println("[Auto Trigger] Sending request to ORIGINAL URL...");
     fetchCommandAndAct(requestURL_ORIGINAL);
@@ -159,9 +154,9 @@ void fetchCommandAndAct(const String& url) {
           cycleCount++;
           Serial.printf("→ Cycle %d | Remaining grams: %d\n", cycleCount, grams);
 
-          moveServoToDegrees(rotationAngle); // forward
+          moveServoToDegrees(rotationAngle); 
           delay(400);
-          moveServoToDegrees(0);             // back
+          moveServoToDegrees(0);             
           delay(400);
 
           grams -= 5;
