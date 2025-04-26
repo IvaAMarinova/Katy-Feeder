@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import axios from "axios";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL;
+const NGROK_URL = import.meta.env.VITE_NGROK_URL;
 
 // Configure axios defaults
 axios.defaults.baseURL = API_URL;
@@ -77,6 +78,20 @@ export default function Dashboard() {
   return (
     <Layout title="Dashboard">
       <div className="space-y-8">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+            Live Camera Feed
+          </h2>
+          <div className="w-full aspect-video bg-gray-100 rounded-lg overflow-hidden shadow-md">
+            <iframe
+              src={NGROK_URL}
+              className="w-full h-full border-0"
+              allow="camera"
+              title="Pet Camera Feed"
+            />
+          </div>
+        </div>
+
         {/* Feeders Section */}
         <div>
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">Feeders</h2>
