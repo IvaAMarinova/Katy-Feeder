@@ -195,32 +195,6 @@ export default function Pet() {
               </div>
             </div>
           </div>
-
-          {/* Feeder Information */}
-          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 transform hover:scale-102 transition-transform duration-200">
-            <div className="flex items-center space-x-2 mb-4">
-              <FaHome className="text-2xl text-pink-600" />
-              <h2 className="text-xl font-semibold text-gray-800">
-                Feeder Information
-              </h2>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3 p-3 bg-pink-50 rounded-lg">
-                <FaHome className="text-pink-600" />
-                <span className="font-medium">Assigned Feeder:</span>
-                <span>{pet.feeder.name}</span>
-              </div>
-              <div className="flex items-center space-x-3 p-3 bg-pink-50 rounded-lg">
-                <div
-                  className={`w-3 h-3 rounded-full ${
-                    pet.feeder.isActive ? "bg-green-500" : "bg-red-500"
-                  }`}
-                />
-                <span className="font-medium">Feeder Status:</span>
-                <span>{pet.feeder.isActive ? "Active" : "Inactive"}</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </Layout>

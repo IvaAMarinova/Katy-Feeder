@@ -11,4 +11,9 @@ export default defineConfig({
       "@": path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./src"),
     },
   },
+   server: {
+    host: "0.0.0.0",
+    port: 5173,
+    allowedHosts: ["iva.tolisoft.net"],
+  },
 });

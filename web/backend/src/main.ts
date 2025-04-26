@@ -6,7 +6,7 @@ async function bootstrap() {
 
   // Enable CORS with comprehensive configuration
   app.enableCors({
-    origin: '*',
+    origin: 'http://iva.tolisoft.net:5175',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
@@ -20,6 +20,6 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
 
-  await app.listen(3000);
+  await app.listen(process.env.PORT || 3000);
 }
 bootstrap();
