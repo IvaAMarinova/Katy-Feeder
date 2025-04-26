@@ -1,7 +1,10 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import axios from "axios";
+import CatPopup from "@/components/catPopup";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const NGROK_URL = import.meta.env.VITE_NGROK_URL;
@@ -33,6 +36,7 @@ export default function Dashboard() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPopupOpen, setIsPopupOpen] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -77,19 +81,33 @@ export default function Dashboard() {
 
   return (
     <Layout title="Dashboard">
+      <CatPopup isOpen={isPopupOpen} onClose={() => setIsPopupOpen(false)} />
+
+      {!isPopupOpen && (
+        <div className="fixed bottom-4 right-4 z-10">
+          <button
+            onClick={() => setIsPopupOpen(true)}
+            className="bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 px-4 rounded-full shadow-lg"
+          >
+            Open Cat Game
+          </button>
+        </div>
+      )}
+
       <div className="space-y-8">
         <div>
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
             Live Camera Feed
           </h2>
-          <div className="w-full aspect-video bg-gray-100 rounded-lg overflow-hidden shadow-md">
+          <p> Coming soon! </p>
+          {/* <div className="w-full aspect-video bg-gray-100 rounded-lg overflow-hidden shadow-md">
             <iframe
               src={NGROK_URL}
               className="w-full h-full border-0"
               allow="camera"
               title="Pet Camera Feed"
             />
-          </div>
+          </div> */}
         </div>
 
         {/* Feeders Section */}

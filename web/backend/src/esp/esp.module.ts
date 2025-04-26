@@ -8,5 +8,6 @@ import { FeederModule } from '../feeder/feeder.module';
   imports: [PetModule, FeederModule],
   controllers: [EspController],
   providers: [EspService],
+  exports: [EspService],
 })
 export class EspModule {}

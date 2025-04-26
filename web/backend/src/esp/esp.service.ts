@@ -11,6 +11,10 @@ export interface FeederCommand {
 @Injectable()
 export class EspService {
   private readonly logger = new Logger(EspService.name);
+  private foodTimerEnd: Date | null = null;
+  private drinkTimerEnd: Date | null = null;
+  private foodTimerDuration = 30 * 60 * 1000; // 30 minutes in milliseconds
+  private drinkTimerDuration = 15 * 60 * 1000; // 15 minutes in milliseconds
   private readonly feedingHours = [9, 15, 20];
   private lastDispensedHour: Map<number, number> = new Map();
   private pendingFeedings: Map<number, number> = new Map(); // Store pending feed amounts
@@ -91,5 +95,50 @@ export class EspService {
       this.logger.error(`Error in getFeederCommand: ${error.message}`);
       throw error;
     }
+  }
+
+  async setTimer(type: 'food' | 'drink', minutes: number): Promise<void> {
+    const milliseconds = minutes * 60 * 1000;
+    if (type === 'food') {
+      this.foodTimerDuration = milliseconds;
+      this.foodTimerEnd = new Date(Date.now() + milliseconds);
+    } else {
+      this.drinkTimerDuration = milliseconds;
+      this.drinkTimerEnd = new Date(Date.now() + milliseconds);
+    }
+  }
+
+  async resetTimer(type: 'food' | 'drink'): Promise<void> {
+    const now = new Date();
+    if (type === 'food') {
+      this.foodTimerEnd = new Date(now.getTime() + this.foodTimerDuration);
+    } else {
+      this.drinkTimerEnd = new Date(now.getTime() + this.drinkTimerDuration);
+    }
+  }
+
+  async getTimerStatus(): Promise<{
+    foodTimeRemaining: number;
+    drinkTimeRemaining: number;
+  }> {
+    const now = new Date();
+
+    if (!this.foodTimerEnd) {
+      this.foodTimerEnd = new Date(now.getTime() + this.foodTimerDuration);
+    }
+    if (!this.drinkTimerEnd) {
+      this.drinkTimerEnd = new Date(now.getTime() + this.drinkTimerDuration);
+    }
+
+    const foodTimeRemaining = Math.max(
+      0,
+      this.foodTimerEnd.getTime() - now.getTime(),
+    );
+    const drinkTimeRemaining = Math.max(
+      0,
+      this.drinkTimerEnd.getTime() - now.getTime(),
+    );
+
+    return { foodTimeRemaining, drinkTimeRemaining };
   }
 }

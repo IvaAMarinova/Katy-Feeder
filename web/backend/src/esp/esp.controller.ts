@@ -47,4 +47,22 @@ export class EspController {
       throw error;
     }
   }
+
+  @Get('timer-status')
+  async getTimerStatus() {
+    return this.espService.getTimerStatus();
+  }
+
+  @Post('reset-timer/:type')
+  async resetTimer(@Param('type') type: 'food' | 'drink') {
+    return this.espService.resetTimer(type);
+  }
+
+  @Post('set-timer/:type/:minutes')
+  async setTimer(
+    @Param('type') type: 'food' | 'drink',
+    @Param('minutes', ParseIntPipe) minutes: number,
+  ) {
+    return this.espService.setTimer(type, minutes);
+  }
 }
