@@ -142,7 +142,7 @@ export default function CatPopup({ isOpen, onClose }: CatPopupProps) {
           <div className="text-center animate-scaleIn">
             <h1 className="text-5xl font-bold text-white mb-4">
               <span className="text-yellow-400">TUES </span>
-              <span className="text-pink-400">Fest</span>
+              <span className="text-pink-400">Fest </span>
               <span className="text-blue-400">2025</span>
             </h1>
             <div className="text-2xl text-white animate-pulse">
@@ -210,7 +210,7 @@ export default function CatPopup({ isOpen, onClose }: CatPopupProps) {
             {step === "options" && (
               <div className="space-y-8 text-center animate-fadeIn">
                 <h2 className="text-3xl font-bold text-white drop-shadow-md">
-                  Какво ми се яде?
+                  Какво искам?
                 </h2>
 
                 <div className="relative">
