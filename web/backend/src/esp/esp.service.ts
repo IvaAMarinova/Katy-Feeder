@@ -11,134 +11,130 @@ export interface FeederCommand {
 @Injectable()
 export class EspService {
   private readonly logger = new Logger(EspService.name);
-  private foodTimerEnd: Date | null = null;
-  private drinkTimerEnd: Date | null = null;
-  private foodTimerDuration = 30 * 60 * 1000; // 30 minutes in milliseconds
-  private drinkTimerDuration = 15 * 60 * 1000; // 15 minutes in milliseconds
-  private readonly feedingHours = [9, 15, 20];
-  private lastDispensedHour: Map<number, number> = new Map();
-  private pendingFeedings: Map<number, number> = new Map(); // Store pending feed amounts
+  private pendingFeedings: Map<number, number> = new Map();
+  private foodTimerEnd: Date;
+  private drinkTimerEnd: Date;
+  private foodTimerDuration = 2 * 60 * 1000; // 2 minutes default
+  private drinkTimerDuration = 5 * 60 * 1000; // 5 minutes default
 
   constructor(
     private readonly em: EntityManager,
     private readonly petService: PetService,
     private readonly feederService: FeederService,
-  ) {}
-
-  async triggerImmediateFeeding(feederId: number): Promise<void> {
-    const pet = await this.petService.getPetForFeeder(feederId);
-    const grams = pet.morningPortionGrams; // Use morning portion as default
-    this.pendingFeedings.set(feederId, grams);
-    this.logger.debug(`Set pending feeding for feeder ${feederId}: ${grams}g`);
+  ) {
+    this.initializeTimers();
   }
 
   async getFeederCommand(
     feederId: number,
     debug = false,
   ): Promise<FeederCommand> {
-    try {
-      const feeder = await this.feederService.findById(feederId);
-      this.logger.debug(`Found feeder: ${JSON.stringify(feeder)}`);
+    const feeder = await this.feederService.findById(feederId);
+    if (!feeder) {
+      throw new NotFoundException(`Feeder ${feederId} not found`);
+    }
 
-      if (!feeder.isActive) {
-        return { action: 'none' };
-      }
-
-      // Check for pending feeding first
-      const pendingGrams = this.pendingFeedings.get(feederId);
-      if (pendingGrams) {
-        this.pendingFeedings.delete(feederId); // Clear the pending feeding
-        this.logger.debug(`Executing pending feeding: ${pendingGrams}g`);
-        return {
-          action: 'dispense',
-          grams: pendingGrams,
-        };
-      }
-
-      // Regular feeding schedule logic
-      const pet = await this.petService.getPetForFeeder(feederId);
-      const currentHour = new Date().getHours();
-
-      if (debug) {
-        const grams = await this.petService.getCurrentPortions(pet.id);
-        return {
-          action: 'dispense',
-          grams: grams.portions.morning,
-        };
-      }
-
-      if (!this.feedingHours.includes(currentHour)) {
-        return { action: 'none' };
-      }
-
-      const lastHour = this.lastDispensedHour.get(feederId);
-      if (lastHour === currentHour) {
-        return { action: 'none' };
-      }
-
-      this.lastDispensedHour.set(feederId, currentHour);
-
-      let portionGrams: number;
-      if (currentHour === 9) {
-        portionGrams = pet.morningPortionGrams;
-      } else if (currentHour === 15) {
-        portionGrams = pet.afternoonPortionGrams;
-      } else {
-        portionGrams = pet.eveningPortionGrams;
-      }
-
+    // Check for pending immediate feeding
+    const pendingGrams = this.pendingFeedings.get(feederId);
+    if (pendingGrams) {
+      this.pendingFeedings.delete(feederId);
       return {
         action: 'dispense',
-        grams: portionGrams,
+        grams: pendingGrams,
       };
-    } catch (error) {
-      this.logger.error(`Error in getFeederCommand: ${error.message}`);
-      throw error;
     }
+
+    return { action: 'none' };
   }
 
-  async setTimer(type: 'food' | 'drink', minutes: number): Promise<void> {
-    const milliseconds = minutes * 60 * 1000;
-    if (type === 'food') {
-      this.foodTimerDuration = milliseconds;
-      this.foodTimerEnd = new Date(Date.now() + milliseconds);
-    } else {
-      this.drinkTimerDuration = milliseconds;
-      this.drinkTimerEnd = new Date(Date.now() + milliseconds);
+  async triggerImmediateFeeding(feederId: number): Promise<void> {
+    const feeder = await this.feederService.findById(feederId);
+    if (!feeder) {
+      throw new NotFoundException(`Feeder ${feederId} not found`);
     }
+
+    // Get the associated pet to determine portion size
+    const pet = await this.em.findOne('Pet', { feeder: feederId });
+    if (!pet) {
+      throw new NotFoundException(`No pet associated with feeder ${feederId}`);
+    }
+
+    // Use morning portion as default immediate feeding amount
+    const portionGrams = (pet as any).morningPortionGrams;
+
+    // Store the pending feeding
+    this.pendingFeedings.set(feederId, portionGrams);
+
+    this.logger.debug(
+      `Triggered immediate feeding for feeder ${feederId}: ${portionGrams}g`,
+    );
   }
 
-  async resetTimer(type: 'food' | 'drink'): Promise<void> {
+  private initializeTimers(): void {
     const now = new Date();
-    if (type === 'food') {
-      this.foodTimerEnd = new Date(now.getTime() + this.foodTimerDuration);
-    } else {
-      this.drinkTimerEnd = new Date(now.getTime() + this.drinkTimerDuration);
-    }
+    // Start both timers immediately when service starts
+    this.foodTimerEnd = now; // This makes timer start at 0
+    this.drinkTimerEnd = now; // This makes timer start at 0
+    this.logger.log('Timers initialized');
+    this.logger.debug(`Food timer ends at: ${this.foodTimerEnd}`);
+    this.logger.debug(`Drink timer ends at: ${this.drinkTimerEnd}`);
   }
 
   async getTimerStatus(): Promise<{
     foodTimeRemaining: number;
     drinkTimeRemaining: number;
+    foodTimerDuration: number;
+    drinkTimerDuration: number;
   }> {
+    const now = new Date().getTime();
+
+    const foodTimeRemaining = Math.max(0, this.foodTimerEnd.getTime() - now);
+    const drinkTimeRemaining = Math.max(0, this.drinkTimerEnd.getTime() - now);
+
+    // Remove auto-reset logic
+    // if (foodTimeRemaining === 0) {
+    //   this.foodTimerEnd = new Date(now + this.foodTimerDuration);
+    // }
+    // if (drinkTimeRemaining === 0) {
+    //   this.drinkTimerEnd = new Date(now + this.drinkTimerDuration);
+    // }
+
+    return {
+      foodTimeRemaining,
+      drinkTimeRemaining,
+      foodTimerDuration: this.foodTimerDuration,
+      drinkTimerDuration: this.drinkTimerDuration,
+    };
+  }
+
+  async resetTimer(type: 'food' | 'drink'): Promise<void> {
     const now = new Date();
 
-    if (!this.foodTimerEnd) {
+    if (type === 'food') {
       this.foodTimerEnd = new Date(now.getTime() + this.foodTimerDuration);
-    }
-    if (!this.drinkTimerEnd) {
+      this.logger.debug(`Food timer reset. Ends at: ${this.foodTimerEnd}`);
+    } else {
       this.drinkTimerEnd = new Date(now.getTime() + this.drinkTimerDuration);
+      this.logger.debug(`Drink timer reset. Ends at: ${this.drinkTimerEnd}`);
     }
+  }
 
-    const foodTimeRemaining = Math.max(
-      0,
-      this.foodTimerEnd.getTime() - now.getTime(),
-    );
-    const drinkTimeRemaining = Math.max(
-      0,
-      this.drinkTimerEnd.getTime() - now.getTime(),
-    );
+  async setTimer(type: 'food' | 'drink', minutes: number): Promise<void> {
+    const duration = minutes * 60 * 1000; // Convert minutes to milliseconds
+    const now = new Date();
 
-    return { foodTimeRemaining, drinkTimeRemaining };
+    if (type === 'food') {
+      this.foodTimerDuration = duration;
+      this.foodTimerEnd = new Date(now.getTime() + duration);
+      this.logger.debug(
+        `Food timer duration set to ${minutes} minutes. Current timer ends at: ${this.foodTimerEnd}`,
+      );
+    } else {
+      this.drinkTimerDuration = duration;
+      this.drinkTimerEnd = new Date(now.getTime() + duration);
+      this.logger.debug(
+        `Drink timer duration set to ${minutes} minutes. Current timer ends at: ${this.drinkTimerEnd}`,
+      );
+    }
   }
 }

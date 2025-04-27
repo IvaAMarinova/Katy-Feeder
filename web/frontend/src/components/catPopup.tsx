@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import axios from "axios";
-
+import { toast } from "react-toastify";
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 interface CatPopupProps {
@@ -14,8 +14,10 @@ interface CatPopupProps {
 
 export default function CatPopup({ isOpen, onClose }: CatPopupProps) {
   const [step, setStep] = useState<"intro" | "options" | "success">("intro");
-  const [foodTimer, setFoodTimer] = useState(0);
-  const [drinkTimer, setDrinkTimer] = useState(0);
+  const [foodTimer, setFoodTimer] = useState<number | null>(null);
+  const [drinkTimer, setDrinkTimer] = useState<number | null>(null);
+  const [foodDuration, setFoodDuration] = useState<number | null>(null);
+  const [drinkDuration, setDrinkDuration] = useState<number | null>(null);
   const [selectedOption, setSelectedOption] = useState<"food" | "drink" | null>(
     null
   );
@@ -23,23 +25,44 @@ export default function CatPopup({ isOpen, onClose }: CatPopupProps) {
   const [showWaterAnimation, setShowWaterAnimation] = useState(false);
   const [showIntroAnimation, setShowIntroAnimation] = useState(true);
 
-  // Initial fetch when component mounts
-  useEffect(() => {
-    fetchTimerStatus();
-  }, []);
-
-  // Separate the fetch function to be reusable
   const fetchTimerStatus = async () => {
     try {
       const response = await axios.get(
         `${API_BASE_URL}/esp/commands/timer-status`
       );
-      setFoodTimer(Math.ceil(response.data.foodTimeRemaining / 1000));
-      setDrinkTimer(Math.ceil(response.data.drinkTimeRemaining / 1000));
+      const {
+        foodTimeRemaining,
+        drinkTimeRemaining,
+        foodTimerDuration,
+        drinkTimerDuration,
+      } = response.data;
+
+      // Convert milliseconds to seconds for display
+      setFoodTimer(Math.ceil(foodTimeRemaining / 1000));
+      setDrinkTimer(Math.ceil(drinkTimeRemaining / 1000));
+
+      // Store durations in minutes
+      setFoodDuration(Math.ceil(foodTimerDuration / (60 * 1000)));
+      setDrinkDuration(Math.ceil(drinkTimerDuration / (60 * 1000)));
+
+      console.log("Timer Status:", {
+        foodTimeRemaining: Math.ceil(foodTimeRemaining / 1000),
+        drinkTimeRemaining: Math.ceil(drinkTimeRemaining / 1000),
+        foodTimerDuration: Math.ceil(foodTimerDuration / (60 * 1000)),
+        drinkTimerDuration: Math.ceil(drinkTimerDuration / (60 * 1000)),
+      });
     } catch (error) {
       console.error("Failed to fetch timer status:", error);
+      toast.error("Failed to fetch timer status");
     }
   };
+
+  // Fetch initial timer status when component mounts and when isOpen changes
+  useEffect(() => {
+    if (isOpen) {
+      fetchTimerStatus();
+    }
+  }, [isOpen]);
 
   // Regular updates when in options step
   useEffect(() => {
@@ -59,7 +82,8 @@ export default function CatPopup({ isOpen, onClose }: CatPopupProps) {
     }
   }, [showIntroAnimation]);
 
-  const formatTime = (seconds: number): string => {
+  const formatTime = (seconds: number | null): string => {
+    if (seconds === null) return "--:--";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? "0" + secs : secs}`;
@@ -69,7 +93,17 @@ export default function CatPopup({ isOpen, onClose }: CatPopupProps) {
     setSelectedOption(option);
 
     try {
+      // If it's food option, trigger the feed-now endpoint first
+      if (option === "food") {
+        await axios.post(`${API_BASE_URL}/esp/commands/feeder/1/feed-now`);
+        toast.success("Feeding triggered successfully!");
+      }
+
+      // Reset the timer
       await axios.post(`${API_BASE_URL}/esp/commands/reset-timer/${option}`);
+
+      // Immediately fetch new timer status after reset
+      await fetchTimerStatus();
 
       if (option === "food") {
         setShowFoodAnimation(true);
@@ -79,9 +113,12 @@ export default function CatPopup({ isOpen, onClose }: CatPopupProps) {
         setTimeout(() => setShowWaterAnimation(false), 2000);
       }
 
-      setTimeout(() => setStep("success"), 2000);
+      setTimeout(() => {
+        setStep("success");
+      }, 2000);
     } catch (error) {
-      console.error("Failed to reset timer:", error);
+      console.error("Failed to process request:", error);
+      toast.error("Failed to process request");
     }
   };
 
@@ -185,9 +222,9 @@ export default function CatPopup({ isOpen, onClose }: CatPopupProps) {
                       </div>
                       <Button
                         onClick={() => handleOptionClick("food")}
-                        disabled={foodTimer > 0}
+                        disabled={foodTimer ? foodTimer > 0 : false}
                         className={`w-full h-32 rounded-xl shadow-lg transform transition-transform hover:scale-105 flex flex-col items-center justify-center space-y-2 ${
-                          foodTimer > 0
+                          foodTimer && foodTimer > 0
                             ? "bg-yellow-300 opacity-70 cursor-not-allowed"
                             : "bg-gradient-to-br from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600"
                         }`}
@@ -227,9 +264,9 @@ export default function CatPopup({ isOpen, onClose }: CatPopupProps) {
                       </div>
                       <Button
                         onClick={() => handleOptionClick("drink")}
-                        disabled={drinkTimer > 0}
+                        disabled={drinkTimer ? drinkTimer > 0 : false}
                         className={`w-full h-32 rounded-xl shadow-lg transform transition-transform hover:scale-105 flex flex-col items-center justify-center space-y-2 ${
-                          drinkTimer > 0
+                          drinkTimer && drinkTimer > 0
                             ? "bg-blue-300 opacity-70 cursor-not-allowed"
                             : "bg-gradient-to-br from-blue-400 to-cyan-500 hover:from-blue-500 hover:to-cyan-600"
                         }`}

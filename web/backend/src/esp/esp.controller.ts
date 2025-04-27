@@ -50,12 +50,15 @@ export class EspController {
 
   @Get('timer-status')
   async getTimerStatus() {
+    this.logger.debug('Getting timer status');
     return this.espService.getTimerStatus();
   }
 
   @Post('reset-timer/:type')
   async resetTimer(@Param('type') type: 'food' | 'drink') {
-    return this.espService.resetTimer(type);
+    this.logger.debug(`Resetting timer for: ${type}`);
+    await this.espService.resetTimer(type);
+    return { success: true };
   }
 
   @Post('set-timer/:type/:minutes')
@@ -63,6 +66,8 @@ export class EspController {
     @Param('type') type: 'food' | 'drink',
     @Param('minutes', ParseIntPipe) minutes: number,
   ) {
-    return this.espService.setTimer(type, minutes);
+    this.logger.debug(`Setting ${type} timer for ${minutes} minutes`);
+    await this.espService.setTimer(type, minutes);
+    return { success: true };
   }
 }
